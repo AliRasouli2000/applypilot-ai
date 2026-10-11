@@ -4,32 +4,266 @@
   min-height: 100vh;
 }
 
-.app {
-  max-width: 900px;
-  margin: 100px auto;
-  padding: 24px;
-  font-family: Arial, sans-serif;
-  text-align: center;
+.dashboard {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px;
 }
 
-.app h1 {
-  font-size: 42px;
-  margin-bottom: 12px;
+header {
+  margin-bottom: 36px;
 }
 
-.app > p {
-  color: #888;
-  font-size: 18px;
+header h1 {
+  font-size: 32px;
+  margin-bottom: 8px;
 }
 
-.status-card {
-  margin: 40px auto;
-  padding: 24px;
-  max-width: 500px;
-  border: 1px solid #ccc;
+header p {
+  color: #9ca3af;
+}
+
+section {
+  margin-bottom: 36px;
+}
+
+section h2 {
+  margin-bottom: 22px;
+}
+
+.form-section {
+  background: #1f2937;
+  padding: 28px;
+  border: 1px solid #374151;
   border-radius: 12px;
 }
 
-.status-card h2 {
-  margin-top: 0;
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #4b5563;
+  border-radius: 7px;
+  background: #111827;
+  color: #f9fafb;
+  font: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+form button {
+  align-self: flex-start;
+  padding: 12px 22px;
+  background: #2563eb;
+  border: none;
+  border-radius: 7px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+form button:hover {
+  background: #1d4ed8;
+}
+
+form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-actions .cancel-button {
+  background: #4b5563;
+}
+
+.form-actions .cancel-button:hover {
+  background: #374151;
+}
+
+.success {
+  color: #86efac;
+}
+
+.error {
+  color: #fca5a5;
+}
+
+/* Dashboard Statistics */
+
+.statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.stat-card p {
+  color: #9ca3af;
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.stat-card h3 {
+  font-size: 30px;
+  margin: 0;
+  color: #f9fafb;
+}
+
+/* Search and Filtering */
+
+.filter-controls {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.filter-controls input {
+  flex: 2;
+  min-width: 0;
+}
+
+.filter-controls select {
+  flex: 1;
+  min-width: 0;
+}
+
+.results-count {
+  color: #9ca3af;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* Applications Table */
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 16px;
+  border-bottom: 1px solid #374151;
+}
+
+th {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-actions button {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.edit-button {
+  background: #2563eb;
+}
+
+.edit-button:hover {
+  background: #1d4ed8;
+}
+
+.delete-button {
+  background: #dc2626;
+}
+
+.delete-button:hover {
+  background: #b91c1c;
+}
+
+.table-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+
+@media (max-width: 850px) {
+  .statistics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .dashboard {
+    padding: 24px 12px;
+  }
+
+  .form-section {
+    padding: 18px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  th,
+  td {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 550px) {
+  .statistics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-controls {
+    flex-direction: column;
+  }
 }
