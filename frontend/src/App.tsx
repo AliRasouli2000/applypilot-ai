@@ -1,6 +1,9 @@
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import "./App.css";
+
+import AuthPage from "./components/AuthPage";
+import { getCurrentUser, type AuthUser } from "./api/auth";
 
 type JobApplication = {
   id: number;
@@ -21,13 +24,16 @@ type ApplicationForm = {
   notes: string;
 };
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL =
+  import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 function getToday() {
   const now = new Date();
+
   const localDate = new Date(
     now.getTime() - now.getTimezoneOffset() * 60000
   );
+
   return localDate.toISOString().split("T")[0];
 }
 
@@ -42,10 +48,17 @@ function emptyForm(): ApplicationForm {
   };
 }
 
-function App() {
+type DashboardProps = {
+  token: string;
+  user: AuthUser;
+  onLogout: () => void;
+};
+
+function Dashboard({ token, user, onLogout }: DashboardProps) {
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [form, setForm] = useState<ApplicationForm>(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -91,29 +104,53 @@ function App() {
 
   // Load applications from FastAPI
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchApplications() {
       try {
-        const response = await fetch(`${API_URL}/applications`);
+        const response = await fetch(`${API_URL}/applications`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 401) {
+          onLogout();
+          return;
+        }
 
         if (!response.ok) {
           throw new Error("Failed to fetch applications");
         }
 
         const data: JobApplication[] = await response.json();
-        setApplications(data);
+
+        if (!cancelled) {
+          setApplications(data);
+        }
       } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load applications"
-        );
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Failed to load applications"
+          );
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     void fetchApplications();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, onLogout]);
 
   function updateField(
     field: keyof ApplicationForm,
@@ -189,9 +226,15 @@ function App() {
         method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
+
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -253,8 +296,16 @@ function App() {
         `${API_URL}/applications/${application.id}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
+
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
 
       if (!response.ok) {
         throw new Error("Failed to delete application");
@@ -287,6 +338,22 @@ function App() {
       <header>
         <h1>ApplyPilot Lite</h1>
         <p>Your AI-powered job application tracker</p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+            flexWrap: "wrap",
+            marginTop: "12px",
+          }}
+        >
+          <span>Signed in as {user.email}</span>
+
+          <button type="button" onClick={onLogout}>
+            Log Out
+          </button>
+        </div>
       </header>
 
       <main>
@@ -383,15 +450,12 @@ function App() {
             )}
 
             <div className="form-actions">
-              <button
-                type="submit"
-                disabled={saving}
-              >
+              <button type="submit" disabled={saving}>
                 {saving
                   ? "Saving..."
                   : editingId !== null
-                  ? "Save Changes"
-                  : "Add Application"}
+                    ? "Save Changes"
+                    : "Add Application"}
               </button>
 
               {editingId !== null && (
@@ -570,6 +634,71 @@ function App() {
         </section>
       </main>
     </div>
+  );
+}
+
+function App() {
+  // Tokens are kept in memory, not localStorage.
+  // Refreshing the page requires logging in again.
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  const handleLogout = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    setAuthError("");
+  }, []);
+
+  async function handleLogin(accessToken: string) {
+    setChecking(true);
+    setAuthError("");
+
+    try {
+      const profile = await getCurrentUser(accessToken);
+
+      setUser(profile);
+      setToken(accessToken);
+    } catch {
+      setAuthError(
+        "Unable to verify your login. Please try again."
+      );
+      setToken(null);
+      setUser(null);
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  if (token && user) {
+    return (
+      <Dashboard
+        token={token}
+        user={user}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <>
+      {checking && (
+        <p role="status">Signing in...</p>
+      )}
+
+      {authError && (
+        <p role="alert" className="error">
+          {authError}
+        </p>
+      )}
+
+      <AuthPage
+        onLogin={(accessToken) => {
+          void handleLogin(accessToken);
+        }}
+      />
+    </>
   );
 }
 

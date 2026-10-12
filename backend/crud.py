@@ -6,28 +6,53 @@ from models import JobApplication
 from schemas import JobApplicationCreate, JobApplicationUpdate
 
 
-def create_application(db: Session, data: JobApplicationCreate):
-    application = JobApplication(**data.model_dump())
+def create_application(
+    db: Session,
+    data: JobApplicationCreate,
+    user_id: int,
+):
+    application = JobApplication(
+        **data.model_dump(),
+        user_id=user_id,
+    )
+
     db.add(application)
     db.commit()
     db.refresh(application)
+
     return application
 
 
-def get_applications(db: Session):
-    return db.scalars(
-        select(JobApplication).order_by(JobApplication.id.desc())
-    ).all()
+def get_applications(
+    db: Session,
+    user_id: int,
+):
+    statement = (
+        select(JobApplication)
+        .where(JobApplication.user_id == user_id)
+        .order_by(JobApplication.id.desc())
+    )
+
+    return db.scalars(statement).all()
 
 
-def get_application(db: Session, application_id: int):
-    return db.get(JobApplication, application_id)
+def get_application(
+    db: Session,
+    application_id: int,
+    user_id: int,
+):
+    statement = select(JobApplication).where(
+        JobApplication.id == application_id,
+        JobApplication.user_id == user_id,
+    )
+
+    return db.scalar(statement)
 
 
 def update_application(
     db: Session,
     application: JobApplication,
-    data: JobApplicationUpdate
+    data: JobApplicationUpdate,
 ):
     updates = data.model_dump(exclude_unset=True)
 
@@ -36,9 +61,13 @@ def update_application(
 
     db.commit()
     db.refresh(application)
+
     return application
 
 
-def delete_application(db: Session, application: JobApplication):
+def delete_application(
+    db: Session,
+    application: JobApplication,
+):
     db.delete(application)
     db.commit()

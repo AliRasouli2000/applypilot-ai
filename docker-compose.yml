@@ -1,0 +1,35 @@
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: applypilot_docker_db
+      POSTGRES_USER: applypilot
+      POSTGRES_PASSWORD: ${DOCKER_DB_PASSWORD:?Set DOCKER_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U applypilot -d applypilot_docker_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://applypilot:${DOCKER_DB_PASSWORD}@db:5432/applypilot_docker_db
+      JWT_SECRET_KEY: ${DOCKER_JWT_SECRET_KEY:?Set DOCKER_JWT_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  postgres_data:
