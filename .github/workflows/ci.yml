@@ -1,12 +1,13 @@
 
-name: Backend CI
+name: CI
 
 on:
   push:
   pull_request:
 
 jobs:
-  test:
+  backend:
+    name: Backend tests
     runs-on: ubuntu-latest
 
     services:
@@ -27,6 +28,8 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg2://postgres:testpassword@localhost:5432/applypilot_test_db
       TEST_DATABASE_URL: postgresql+psycopg2://postgres:testpassword@localhost:5432/applypilot_test_db
+      # Test-only value; production secrets live in the server's .env
+      JWT_SECRET_KEY: ci-test-only-jwt-secret-not-used-in-production
 
     defaults:
       run:
@@ -48,3 +51,33 @@ jobs:
 
       - name: Run Pytest
         run: python -m pytest tests/ -v
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.example.com

@@ -19,6 +19,7 @@ load_dotenv(BACKEND_DIR / ".env")
 from database import Base, get_db
 import models
 from main import app
+from rate_limit import auth_limiter
 
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -67,6 +68,9 @@ def client():
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+
+    # Each test starts with a fresh auth rate-limit window
+    auth_limiter.reset()
 
     try:
         with TestClient(app) as test_client:

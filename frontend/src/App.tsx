@@ -6,6 +6,7 @@ import AuthPage from "./components/AuthPage";
 import ResumeMatcher from "./components/ResumeMatcher";
 
 import { getCurrentUser, type AuthUser } from "./api/auth";
+import { API_URL } from "./config";
 
 
 
@@ -46,10 +47,6 @@ type ApplicationForm = {
 };
 
 
-
-const API_URL =
-
-  import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 
 

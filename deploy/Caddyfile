@@ -1,0 +1,30 @@
+{
+	# Only TCP 80/443 are opened in the security group, so skip HTTP/3.
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	# Resumes and job descriptions are plain text; cap request size.
+	request_body {
+		max_size 1MB
+	}
+
+	reverse_proxy backend:8000
+
+	log {
+		output stdout
+		format json
+	}
+}
