@@ -11,6 +11,40 @@ export interface LoginResponse {
   token_type: string;
 }
 
+type ValidationIssue = {
+  loc?: (string | number)[];
+};
+
+// FastAPI returns `detail` as a string for most errors and as a
+// list of field issues for validation (422) errors.
+async function readErrorMessage(
+  response: Response,
+  fallback: string
+): Promise<string> {
+  const body = await response.json().catch(() => null);
+  const detail = body?.detail;
+
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    const fields = detail.map(
+      (issue: ValidationIssue) => issue.loc?.[issue.loc.length - 1]
+    );
+
+    if (fields.includes("email")) {
+      return "Enter a valid email address.";
+    }
+
+    if (fields.includes("password")) {
+      return "Password must be between 8 and 128 characters.";
+    }
+  }
+
+  return fallback;
+}
+
 export async function registerUser(
   email: string,
   password: string
@@ -24,10 +58,8 @@ export async function registerUser(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => null);
-
     throw new Error(
-      error?.detail ?? "Registration failed"
+      await readErrorMessage(response, "Registration failed. Please try again.")
     );
   }
 
@@ -47,10 +79,8 @@ export async function loginUser(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => null);
-
     throw new Error(
-      error?.detail ?? "Login failed"
+      await readErrorMessage(response, "Login failed. Please try again.")
     );
   }
 

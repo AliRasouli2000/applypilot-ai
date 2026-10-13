@@ -1,31 +1,74 @@
-
 import { useState, type FormEvent } from "react";
+
 import { loginUser, registerUser } from "../api/auth";
+import { getErrorMessage } from "../utils";
+import {
+  AlertIcon,
+  BriefcaseIcon,
+  CheckIcon,
+  EyeIcon,
+  EyeOffIcon,
+  LogoMark,
+  ShieldIcon,
+  SparklesIcon,
+} from "./Icons";
+import Spinner from "./Spinner";
 
 type AuthPageProps = {
   onLogin: (token: string) => void;
+  // True while the app verifies the token after a successful login
+  verifying: boolean;
+  // Message from the app, e.g. an expired session
+  notice: string;
 };
 
-export default function AuthPage({ onLogin }: AuthPageProps) {
+const FEATURES = [
+  {
+    icon: <BriefcaseIcon size={18} />,
+    title: "Every application in one place",
+    text: "Track companies, roles, statuses and notes without spreadsheets.",
+  },
+  {
+    icon: <SparklesIcon size={18} />,
+    title: "AI resume matching",
+    text: "See how your resume fits a job and what to improve before applying.",
+  },
+  {
+    icon: <ShieldIcon size={18} />,
+    title: "Private by default",
+    text: "Your applications are only visible to your account.",
+  },
+];
+
+export default function AuthPage({
+  onLogin,
+  verifying,
+  notice,
+}: AuthPageProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const isRegister = mode === "register";
+  const busy = loading || verifying;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
 
     setError("");
     setMessage("");
     setLoading(true);
 
     try {
-      if (mode === "register") {
+      if (isRegister) {
         await registerUser(email, password);
 
-        setMessage("Account created! Please log in.");
+        setMessage("Account created. Log in to get started.");
         setMode("login");
         setPassword("");
       } else {
@@ -33,271 +76,192 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
         onLogin(result.access_token);
       }
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again."
-      );
+      setError(getErrorMessage(err, "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }
   }
 
-  function switchMode() {
-    setMode(mode === "login" ? "register" : "login");
+  function changeMode(nextMode: "login" | "register") {
+    setMode(nextMode);
     setError("");
     setMessage("");
     setPassword("");
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.logo}>AP</div>
+    <div className="auth-layout">
+      <aside className="auth-brand">
+        <div className="auth-brand-inner">
+          <div className="brand">
+            <LogoMark size={32} />
+            <span className="brand-name">
+              ApplyPilot <span className="brand-tag">Lite</span>
+            </span>
+          </div>
 
-        <h1 style={styles.title}>ApplyPilot Lite</h1>
+          <div>
+            <h2 className="auth-brand-title">
+              Run your job search like a project.
+            </h2>
+            <p className="auth-brand-text">
+              ApplyPilot keeps your applications organized and uses AI to
+              help you tailor your resume for every role.
+            </p>
+          </div>
 
-        <p style={styles.subtitle}>
-          Track your job applications in one place.
-        </p>
-
-        <div style={styles.tabs}>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("login");
-              setError("");
-              setMessage("");
-            }}
-            style={{
-              ...styles.tab,
-              ...(mode === "login" ? styles.activeTab : {}),
-            }}
-          >
-            Log In
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMode("register");
-              setError("");
-              setMessage("");
-            }}
-            style={{
-              ...styles.tab,
-              ...(mode === "register" ? styles.activeTab : {}),
-            }}
-          >
-            Sign Up
-          </button>
+          <ul className="auth-features">
+            {FEATURES.map((feature) => (
+              <li key={feature.title}>
+                <span className="auth-feature-icon">{feature.icon}</span>
+                <div>
+                  <p className="auth-feature-title">{feature.title}</p>
+                  <p className="auth-feature-text">{feature.text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
+      </aside>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label htmlFor="email" style={styles.label}>
-            Email address
-          </label>
+      <main className="auth-main">
+        <div className="auth-card">
+          <div className="brand auth-mobile-brand">
+            <LogoMark size={32} />
+            <span className="brand-name">
+              ApplyPilot <span className="brand-tag">Lite</span>
+            </span>
+          </div>
 
-          <input
-            id="email"
-            type="email"
-            placeholder="you@example.com"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            style={styles.input}
-          />
+          <h1 className="auth-title">
+            {isRegister ? "Create your account" : "Welcome back"}
+          </h1>
+          <p className="auth-subtitle">
+            {isRegister
+              ? "Start tracking your applications in minutes."
+              : "Log in to continue to your dashboard."}
+          </p>
 
-          <label htmlFor="password" style={styles.label}>
-            Password
-          </label>
+          <div className="segmented" role="group" aria-label="Account">
+            <button
+              type="button"
+              aria-pressed={!isRegister}
+              onClick={() => changeMode("login")}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              aria-pressed={isRegister}
+              onClick={() => changeMode("register")}
+            >
+              Sign up
+            </button>
+          </div>
 
-          <input
-            id="password"
-            type="password"
-            placeholder={
-              mode === "register"
-                ? "At least 8 characters"
-                : "Enter your password"
-            }
-            autoComplete={
-              mode === "register"
-                ? "new-password"
-                : "current-password"
-            }
-            minLength={mode === "register" ? 8 : undefined}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            style={styles.input}
-          />
-
-          {error && (
-            <p role="alert" style={styles.error}>
-              {error}
-            </p>
+          {notice && !error && !message && (
+            <div className="alert alert-info" role="status">
+              <AlertIcon />
+              <span>{notice}</span>
+            </div>
           )}
 
-          {message && (
-            <p role="status" style={styles.success}>
-              {message}
-            </p>
-          )}
+          <form className="auth-form" onSubmit={handleSubmit}>
+            <div className="field">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                className="input input-large"
+                type="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.submitButton,
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading
-              ? "Please wait..."
-              : mode === "login"
-                ? "Log In"
-                : "Create Account"}
-          </button>
-        </form>
+            <div className="field">
+              <label htmlFor="password">Password</label>
+              <div className="password-field">
+                <input
+                  id="password"
+                  className="input input-large"
+                  type={showPassword ? "text" : "password"}
+                  placeholder={
+                    isRegister ? "At least 8 characters" : "Your password"
+                  }
+                  autoComplete={isRegister ? "new-password" : "current-password"}
+                  minLength={isRegister ? 8 : undefined}
+                  maxLength={128}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  aria-describedby={isRegister ? "password-hint" : undefined}
+                  required
+                />
+                <button
+                  type="button"
+                  className="icon-button password-toggle"
+                  onClick={() => setShowPassword((shown) => !shown)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
+              {isRegister && (
+                <span
+                  id="password-hint"
+                  className={`field-hint ${password.length >= 8 ? "field-hint-ok" : ""}`}
+                >
+                  {password.length >= 8 && <CheckIcon size={12} />}
+                  Use at least 8 characters.
+                </span>
+              )}
+            </div>
 
-        <p style={styles.footer}>
-          {mode === "login"
-            ? "Don't have an account?"
-            : "Already have an account?"}{" "}
-          <button
-            type="button"
-            onClick={switchMode}
-            style={styles.linkButton}
-          >
-            {mode === "login" ? "Sign up" : "Log in"}
-          </button>
-        </p>
-      </div>
+            {error && (
+              <div className="alert alert-error" role="alert">
+                <AlertIcon />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {message && (
+              <div className="alert alert-success" role="status">
+                <CheckIcon />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="button button-primary button-block button-large"
+              disabled={busy}
+            >
+              {busy && <Spinner />}
+              {verifying
+                ? "Signing in..."
+                : loading
+                  ? "Please wait..."
+                  : isRegister
+                    ? "Create account"
+                    : "Log in"}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            {isRegister ? "Already have an account?" : "New to ApplyPilot?"}{" "}
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => changeMode(isRegister ? "login" : "register")}
+            >
+              {isRegister ? "Log in" : "Create an account"}
+            </button>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#f3f6fb",
-    padding: "24px",
-    boxSizing: "border-box",
-  },
-  card: {
-    width: "100%",
-    maxWidth: "420px",
-    background: "#ffffff",
-    borderRadius: "16px",
-    padding: "36px",
-    boxShadow: "0 12px 40px rgba(0,0,0,0.08)",
-    boxSizing: "border-box",
-  },
-  logo: {
-    width: "52px",
-    height: "52px",
-    borderRadius: "14px",
-    background: "#2563eb",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-    fontSize: "20px",
-    margin: "0 auto 18px",
-  },
-  title: {
-    fontSize: "28px",
-    fontWeight: 750,
-    textAlign: "center",
-    color: "#111827",
-    margin: "0 0 8px",
-  },
-  subtitle: {
-    textAlign: "center",
-    color: "#6b7280",
-    fontSize: "14px",
-    margin: "0 0 28px",
-  },
-  tabs: {
-    display: "flex",
-    gap: "8px",
-    marginBottom: "24px",
-  },
-  tab: {
-    flex: 1,
-    padding: "11px",
-    border: "none",
-    borderRadius: "8px",
-    background: "#f3f4f6",
-    color: "#374151",
-    fontWeight: 600,
-    cursor: "pointer",
-  },
-  activeTab: {
-    background: "#dbeafe",
-    color: "#1d4ed8",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
-  label: {
-    color: "#374151",
-    fontSize: "14px",
-    fontWeight: 600,
-  },
-  input: {
-    padding: "12px 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    fontSize: "15px",
-    outlineColor: "#2563eb",
-  },
-  submitButton: {
-    marginTop: "14px",
-    padding: "13px",
-    background: "#2563eb",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
-    fontSize: "15px",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-  error: {
-    color: "#b91c1c",
-    background: "#fef2f2",
-    borderRadius: "8px",
-    padding: "10px",
-    fontSize: "13px",
-    margin: 0,
-  },
-  success: {
-    color: "#166534",
-    background: "#f0fdf4",
-    borderRadius: "8px",
-    padding: "10px",
-    fontSize: "13px",
-    margin: 0,
-  },
-  footer: {
-    marginTop: "24px",
-    textAlign: "center",
-    color: "#6b7280",
-    fontSize: "14px",
-  },
-  linkButton: {
-    border: "none",
-    background: "transparent",
-    color: "#2563eb",
-    fontWeight: 700,
-    cursor: "pointer",
-    padding: 0,
-  },
-};
