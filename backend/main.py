@@ -32,16 +32,10 @@ from schemas import (
 )
 
 
-# Interactive API docs can be disabled in production with ENABLE_DOCS=false
-ENABLE_DOCS = os.getenv("ENABLE_DOCS", "true").lower() == "true"
-
 app = FastAPI(
     title="ApplyPilot Lite API",
     description="AI-powered job application tracker",
     version="1.0.0",
-    docs_url="/docs" if ENABLE_DOCS else None,
-    redoc_url="/redoc" if ENABLE_DOCS else None,
-    openapi_url="/openapi.json" if ENABLE_DOCS else None,
 )
 
 app.include_router(ai_router)
