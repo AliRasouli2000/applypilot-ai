@@ -4,6 +4,8 @@ A full-stack job application tracker. Users create an account, track their
 job applications on a dashboard, and use an AI Resume Matcher (OpenAI) to
 compare their resume against a job description.
 
+**Live demo:** https://applypilot-lite.pages.dev
+
 **Tech stack:** React, TypeScript, Vite · FastAPI, SQLAlchemy, Alembic ·
 PostgreSQL · Docker Compose · Caddy · GitHub Actions · AWS EC2 · Cloudflare Pages
 
@@ -11,8 +13,13 @@ PostgreSQL · Docker Compose · Caddy · GitHub Actions · AWS EC2 · Cloudflare
 
 - Registration and login with Argon2-hashed passwords and JWT access tokens
 - Each user can only see and edit their own job applications
-- Dashboard with create, edit, delete, filtering and statistics
-- AI Resume Matcher, limited to 5 requests per user per day
+- Dashboard with create, edit, delete, search, status filters and statistics
+- AI Resume Matcher with a match score, matched and missing skills,
+  strengths and improvement suggestions
+- 5 AI analyses per user per UTC day, enforced by the backend. The matcher
+  shows how many remain (from `GET /ai/usage`) and resets at 00:00 UTC
+- Responsive interface for desktop, tablet and mobile, with light and dark
+  themes that follow the system setting
 - Login and registration rate limiting (10 attempts per minute per IP)
 
 ## Architecture
