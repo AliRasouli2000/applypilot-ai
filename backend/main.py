@@ -1,6 +1,7 @@
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from ai.routes import router as ai_router
 
 from sqlalchemy import text, select
 from sqlalchemy.orm import Session
@@ -34,6 +35,8 @@ app = FastAPI(
     description="AI-powered job application tracker",
     version="1.0.0",
 )
+
+app.include_router(ai_router)
 
 
 # Allow React to communicate with FastAPI

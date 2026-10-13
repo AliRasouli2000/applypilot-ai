@@ -1,8 +1,9 @@
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     Date,
+    DateTime,
     ForeignKey,
     Integer,
     String,
@@ -39,6 +40,11 @@ class User(Base):
 
     applications: Mapped[list["JobApplication"]] = relationship(
         back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+
+    ai_usage: Mapped[list["AIUsage"]] = relationship(
+        back_populates="user",
         cascade="all, delete-orphan",
     )
 
@@ -92,4 +98,37 @@ class JobApplication(Base):
 
     owner: Mapped["User"] = relationship(
         back_populates="applications",
+    )
+
+
+class AIUsage(Base):
+    __tablename__ = "ai_usage"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    feature: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="resume_match",
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+
+    user: Mapped["User"] = relationship(
+        back_populates="ai_usage",
     )

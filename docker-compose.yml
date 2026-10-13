@@ -24,6 +24,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://applypilot:${DOCKER_DB_PASSWORD}@db:5432/applypilot_docker_db
       JWT_SECRET_KEY: ${DOCKER_JWT_SECRET_KEY:?Set DOCKER_JWT_SECRET_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
     depends_on:
       db:
         condition: service_healthy
