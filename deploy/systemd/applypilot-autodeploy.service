@@ -1,0 +1,9 @@
+[Unit]
+Description=ApplyPilot Lite automatic backend deployment
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ec2-user
+ExecStart=/home/ec2-user/applypilot-lite/deploy/auto-deploy.sh

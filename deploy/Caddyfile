@@ -6,5 +6,10 @@
 		max_size 1MB
 	}
 
-	reverse_proxy backend:8000
+	reverse_proxy backend:8000 {
+		# While the backend container restarts during a deploy,
+		# hold requests and retry instead of returning an error.
+		lb_try_duration 30s
+		lb_try_interval 500ms
+	}
 }

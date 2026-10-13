@@ -102,7 +102,55 @@ and environment variable `VITE_API_URL=https://<API_DOMAIN>`. Every push to
 docker compose exec -T db pg_dump -U applypilot -Fc applypilot_docker_db > backup.dump
 ```
 
-## CI
+**Automatic backend deployment.** Install the deploy timer once (see
+CI/CD below):
 
-GitHub Actions runs the backend tests against PostgreSQL, plus frontend lint
-and build, on every push and pull request.
+```bash
+sudo cp deploy/systemd/applypilot-autodeploy.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now applypilot-autodeploy.timer
+```
+
+## CI/CD
+
+```
+push to main
+  -> CI workflow: backend tests (pytest + PostgreSQL), frontend lint + build
+  -> Cloudflare Pages builds and deploys the frontend
+  -> EC2 timer (every 2 min) finds the newest commit that passed CI,
+     fast-forwards to it and, if backend files changed, rebuilds
+     only the backend container
+  -> Deploy workflow confirms /health reports that commit and
+     /health/db reaches the database
+```
+
+- **CI** ([ci.yml](.github/workflows/ci.yml)) runs on every push and pull
+  request.
+- **Deployment is pull-based.** The server runs
+  [deploy/auto-deploy.sh](deploy/auto-deploy.sh) from a systemd timer. It asks
+  GitHub's public API for the latest successful CI run on `main` and deploys
+  exactly that commit. Commits that fail CI, pull requests and forks are never
+  deployed.
+- **No inbound access or secrets.** GitHub never connects to the server and no
+  deployment credentials exist. SSH stays limited to my IP.
+- **Only the backend restarts.** `docker compose up -d --build --no-deps
+  backend` builds the new image while the old container keeps running, then
+  swaps them. PostgreSQL, Caddy, volumes and `.env` are untouched. Caddy holds
+  requests for up to 30 seconds during the swap. Migrations run on startup.
+- **Verification** ([deploy.yml](.github/workflows/deploy.yml)) runs after CI
+  passes on `main` and shows the result under the repository's Actions tab and
+  the `production` environment.
+- **Failures** are logged on the server (`journalctl -u
+  applypilot-autodeploy`) and the Deploy workflow fails. A failed commit is not
+  retried; the next commit that passes CI is deployed. There is no automatic
+  rollback.
+- **Not deployed automatically:** changes to `docker-compose.prod.yml` or
+  `deploy/Caddyfile`. Apply those by hand with
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`.
+
+**Pause automatic deployment:**
+`sudo systemctl disable --now applypilot-autodeploy.timer`
+(turn it back on with `enable --now`).
+
+**Retry a failed commit:**
+`rm ~/.local/state/applypilot/failed_sha && sudo systemctl start applypilot-autodeploy`

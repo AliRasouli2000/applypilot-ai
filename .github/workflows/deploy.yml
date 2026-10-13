@@ -1,0 +1,114 @@
+name: Deploy
+
+# Runs after the CI workflow finishes on main.
+#
+# The EC2 server deploys the backend itself: a timer runs
+# deploy/auto-deploy.sh, which pulls the newest commit that passed CI.
+# This workflow checks from the outside that the live backend is now
+# running that commit and can reach its database, and reports the result.
+#
+# It uses no secrets and never connects to the server over SSH.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One production deployment at a time; never cancel one halfway
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify backend deployment
+    # Only for successful pushes to this repository's main branch,
+    # never for pull requests or forks
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    environment:
+      name: production
+      url: https://applypilot-lite.pages.dev
+
+    env:
+      API_URL: https://applypilot-api.duckdns.org
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Check whether this commit changes the backend
+        id: changes
+        run: |
+          live=$(curl -fsS --max-time 10 "$API_URL/health" | jq -r '.version')
+          echo "Live backend version: $live"
+          echo "Commit that passed CI: $TARGET_SHA"
+
+          # Same rule as deploy/auto-deploy.sh
+          if git cat-file -e "$live^{commit}" 2>/dev/null \
+            && git diff --quiet "$live" "$TARGET_SHA" -- backend docker-compose.yml; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "The live backend already has this commit's backend code; nothing to deploy."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for the server to deploy this commit
+        if: steps.changes.outputs.needed == 'true'
+        run: |
+          # The server checks for new commits every 2 minutes,
+          # then rebuilds the backend. Allow up to 15 minutes.
+          for attempt in $(seq 1 90); do
+            live=$(curl -fsS --max-time 10 "$API_URL/health" | jq -r '.version' || echo "unreachable")
+
+            if [ "$live" = "$TARGET_SHA" ]; then
+              echo "Backend is running $TARGET_SHA"
+              exit 0
+            fi
+
+            # A newer commit may have been deployed first and include this one
+            git fetch --quiet origin main
+            if [ "$live" != "unreachable" ] \
+              && git merge-base --is-ancestor "$TARGET_SHA" "$live" 2>/dev/null; then
+              echo "A newer commit ($live) that includes this one is live"
+              exit 0
+            fi
+
+            echo "Attempt $attempt: live version is $live, waiting..."
+            sleep 10
+          done
+
+          echo "::error::The backend was not updated to $TARGET_SHA within 15 minutes. On the server, check: journalctl -u applypilot-autodeploy"
+          exit 1
+
+      - name: Check health and database connectivity
+        run: |
+          curl -fsS --max-time 10 "$API_URL/health"
+          echo
+          curl -fsS --max-time 10 "$API_URL/health/db"
+          echo
+
+      - name: Write deployment summary
+        if: always()
+        run: |
+          {
+            echo "## Backend deployment"
+            echo ""
+            echo "- Commit: \`$TARGET_SHA\`"
+            echo "- Backend changes: ${{ steps.changes.outputs.needed || 'unknown' }}"
+            echo "- Result: **${{ job.status }}**"
+            echo "- API: $API_URL"
+          } >> "$GITHUB_STEP_SUMMARY"

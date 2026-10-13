@@ -76,7 +76,10 @@ def home():
 @app.get("/health")
 def health():
     return {
-        "status": "healthy"
+        "status": "healthy",
+        # Git commit baked into the Docker image at build time.
+        # The Deploy workflow uses it to confirm what is live.
+        "version": os.getenv("APP_VERSION", "dev"),
     }
 
 

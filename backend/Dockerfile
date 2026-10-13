@@ -12,6 +12,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Commit SHA of this build, reported by GET /health.
+# Declared after pip install so dependency layers stay cached.
+ARG GIT_SHA=dev
+ENV APP_VERSION=$GIT_SHA
+
 EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
