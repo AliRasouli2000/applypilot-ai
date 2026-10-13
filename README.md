@@ -21,6 +21,8 @@ PostgreSQL · Docker Compose · Caddy · GitHub Actions · AWS EC2 · Cloudflare
 - Responsive interface for desktop, tablet and mobile, with light and dark
   themes that follow the system setting
 - Login and registration rate limiting (10 attempts per minute per IP)
+- CI/CD: every push to `main` is tested, and commits that pass are deployed
+  automatically (frontend to Cloudflare Pages, backend to AWS EC2)
 
 ## Architecture
 
@@ -30,6 +32,8 @@ Browser ──HTTPS──> Cloudflare Pages (React build)
    └──HTTPS──> Caddy (EC2, automatic Let's Encrypt certificate)
                  └──> FastAPI (Docker network only)
                         └──> PostgreSQL (Docker network only)
+
+GitHub ──> GitHub Actions CI (tests) ──> EC2 pulls and deploys commits that pass
 ```
 
 Only Caddy is reachable from the internet. The OpenAI key, JWT secret and
@@ -103,9 +107,14 @@ docker compose exec -T db pg_dump -U applypilot -Fc applypilot_docker_db > backu
 ```
 
 **Automatic backend deployment.** Install the deploy timer once (see
-CI/CD below):
+CI/CD below). On a server that is already running, first record the commit
+the running backend was built from, so the first automatic run knows what
+changed:
 
 ```bash
+mkdir -p ~/.local/state/applypilot
+git rev-parse HEAD > ~/.local/state/applypilot/deployed_sha
+
 sudo cp deploy/systemd/applypilot-autodeploy.* /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now applypilot-autodeploy.timer
@@ -125,12 +134,14 @@ push to main
 ```
 
 - **CI** ([ci.yml](.github/workflows/ci.yml)) runs on every push and pull
-  request.
+  request: 34 backend tests against PostgreSQL, frontend lint and a production
+  build. It has read-only permissions and pins every action to a commit SHA.
 - **Deployment is pull-based.** The server runs
   [deploy/auto-deploy.sh](deploy/auto-deploy.sh) from a systemd timer. It asks
   GitHub's public API for the latest successful CI run on `main` and deploys
-  exactly that commit. Commits that fail CI, pull requests and forks are never
-  deployed.
+  exactly that commit, even if newer commits are still being tested. Commits
+  that fail CI, pull requests and forks are never deployed, and a commit that
+  tracks a `.env` file is refused so production secrets can't be overwritten.
 - **No inbound access or secrets.** GitHub never connects to the server and no
   deployment credentials exist. SSH stays limited to my IP.
 - **Only the backend restarts.** `docker compose up -d --build --no-deps
@@ -138,15 +149,29 @@ push to main
   swaps them. PostgreSQL, Caddy, volumes and `.env` are untouched. Caddy holds
   requests for up to 30 seconds during the swap. Migrations run on startup.
 - **Verification** ([deploy.yml](.github/workflows/deploy.yml)) runs after CI
-  passes on `main` and shows the result under the repository's Actions tab and
-  the `production` environment.
+  passes on `main`. The backend image records its commit, and `GET /health`
+  reports it (`{"status":"healthy","version":"<commit sha>"}`), so the
+  workflow can confirm the right code is live before checking `/health/db`.
+- **Timing:** a push is usually live about 4 to 5 minutes later (about 2
+  minutes for CI, up to 2 minutes until the next server check, under a
+  minute to rebuild).
 - **Failures** are logged on the server (`journalctl -u
   applypilot-autodeploy`) and the Deploy workflow fails. A failed commit is not
   retried; the next commit that passes CI is deployed. There is no automatic
   rollback.
 - **Not deployed automatically:** changes to `docker-compose.prod.yml` or
   `deploy/Caddyfile`. Apply those by hand with
-  `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`.
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`, then
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml restart caddy`
+  for Caddyfile changes.
+
+**Check deployment status:**
+
+- GitHub: the **Actions** tab shows each **CI** run followed by a **Deploy**
+  run with a summary. The repository's **Deployments → production** panel
+  shows the commit that is live.
+- Live version: `curl https://applypilot-api.duckdns.org/health`
+- Server log: `journalctl -u applypilot-autodeploy`
 
 **Pause automatic deployment:**
 `sudo systemctl disable --now applypilot-autodeploy.timer`
