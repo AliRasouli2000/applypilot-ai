@@ -973,6 +973,55 @@ textarea.input {
   margin-top: 16px;
 }
 
+.matcher-footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.usage-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.usage-bars {
+  display: flex;
+  gap: 3px;
+}
+
+.usage-bar {
+  width: 14px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.usage-bar-filled {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.usage-text {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.usage-text strong {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-text-empty strong {
+  color: var(--danger-text);
+}
+
+.usage-limit {
+  margin-top: 16px;
+}
+
 .matcher-loading {
   display: flex;
   align-items: center;

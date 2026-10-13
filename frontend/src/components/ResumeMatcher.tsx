@@ -1,6 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
-import { matchResume, type ResumeMatchResult } from "../api/ai";
+import {
+  getAiUsage,
+  matchResume,
+  type AiUsage,
+  type ResumeMatchResult,
+} from "../api/ai";
 import { getErrorMessage } from "../utils";
 import {
   AlertIcon,
@@ -70,6 +75,27 @@ function CharacterCount({ length }: { length: number }) {
   );
 }
 
+function UsageMeter({ usage }: { usage: AiUsage }) {
+  return (
+    <div className="usage-meter">
+      <span className="usage-bars" aria-hidden="true">
+        {Array.from({ length: usage.limit }, (_, index) => (
+          <span
+            key={index}
+            className={`usage-bar ${index < usage.remaining ? "usage-bar-filled" : ""}`}
+          />
+        ))}
+      </span>
+      <span
+        className={`usage-text ${usage.remaining === 0 ? "usage-text-empty" : ""}`}
+      >
+        <strong>{usage.remaining}</strong> of {usage.limit} analyses remaining
+        today
+      </span>
+    </div>
+  );
+}
+
 export default function ResumeMatcher({
   token,
   onSessionExpired,
@@ -81,6 +107,63 @@ export default function ResumeMatcher({
   const [error, setError] = useState("");
   const [result, setResult] = useState<ResumeMatchResult | null>(null);
 
+  // Remaining analyses come from the backend, so the count is the same
+  // across refreshes, logins and devices.
+  const [usage, setUsage] = useState<AiUsage | null>(null);
+  const [usageError, setUsageError] = useState(false);
+
+  const [usageRefresh, setUsageRefresh] = useState(0);
+
+  // Ask for a fresh count, e.g. after an analysis
+  const refreshUsage = useCallback(
+    () => setUsageRefresh((count) => count + 1),
+    []
+  );
+
+  // Load the count when the matcher opens and whenever it's refreshed
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchUsage() {
+      try {
+        const data = await getAiUsage(token);
+        if (cancelled) return;
+        setUsage(data);
+        setUsageError(false);
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof Error && err.message === "SESSION_EXPIRED") {
+          onSessionExpired();
+          return;
+        }
+        setUsageError(true);
+      }
+    }
+
+    void fetchUsage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, onSessionExpired, usageRefresh]);
+
+  // Refresh the count right after the limit resets at 00:00 UTC
+  const resetsAt = usage?.resets_at;
+
+  useEffect(() => {
+    if (!resetsAt) return;
+
+    const delay = Math.max(new Date(resetsAt).getTime() - Date.now(), 0);
+    const timer = window.setTimeout(
+      refreshUsage,
+      Math.min(delay + 2000, 2 ** 31 - 1)
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [resetsAt, refreshUsage]);
+
+  const limitReached = usage?.remaining === 0;
+
   const resumeLength = resumeText.trim().length;
   const jobLength = jobDescription.trim().length;
 
@@ -89,6 +172,7 @@ export default function ResumeMatcher({
     jobLength >= MIN_LENGTH &&
     resumeLength <= MAX_LENGTH &&
     jobLength <= MAX_LENGTH &&
+    !limitReached &&
     !loading;
 
   async function handleAnalyze(event: FormEvent<HTMLFormElement>) {
@@ -117,6 +201,8 @@ export default function ResumeMatcher({
       setError(getErrorMessage(err, "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
+      // The backend counts the request, so refresh the remaining total
+      refreshUsage();
     }
   }
 
@@ -173,11 +259,36 @@ export default function ResumeMatcher({
           </div>
         </div>
 
+        {limitReached && usage && (
+          <div className="alert alert-info usage-limit" role="status">
+            <AlertIcon />
+            <span>
+              You've used all {usage.limit} analyses for today. Your limit
+              resets at 00:00 UTC (
+              {new Date(usage.resets_at).toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              })}{" "}
+              your time).
+            </span>
+          </div>
+        )}
+
         <div className="matcher-footer">
-          <p className="hint">
-            Up to 5 analyses per day. Each field needs at least{" "}
-            {MIN_LENGTH} characters.
-          </p>
+          <div className="matcher-footer-info">
+            {usage ? (
+              <UsageMeter usage={usage} />
+            ) : (
+              <p className="hint">
+                {usageError
+                  ? "Couldn't load your remaining analyses."
+                  : "Checking remaining analyses..."}
+              </p>
+            )}
+            <p className="hint">
+              Each field needs at least {MIN_LENGTH} characters.
+            </p>
+          </div>
 
           <button
             type="submit"

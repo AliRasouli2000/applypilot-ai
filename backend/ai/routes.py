@@ -2,9 +2,13 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from ai.schemas import ResumeMatchRequest, ResumeMatchResponse
+from ai.schemas import (
+    AIUsageStatus,
+    ResumeMatchRequest,
+    ResumeMatchResponse,
+)
 from ai.service import analyze_resume
-from ai.usage import reserve_ai_usage
+from ai.usage import get_ai_usage_status, reserve_ai_usage
 from auth import get_current_user
 from database import get_db
 from models import User
@@ -14,6 +18,18 @@ router = APIRouter(
     prefix="/ai",
     tags=["AI Resume Matching"],
 )
+
+
+@router.get(
+    "/usage",
+    response_model=AIUsageStatus,
+)
+def get_usage(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Read-only: the limit itself is enforced in /ai/match.
+    return get_ai_usage_status(db, current_user.id)
 
 
 @router.post(

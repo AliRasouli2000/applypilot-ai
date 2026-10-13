@@ -57,3 +57,29 @@ export async function matchResume(
 
   return (await response.json()) as ResumeMatchResponse;
 }
+
+export type AiUsage = {
+  limit: number;
+  used: number;
+  remaining: number;
+  resets_at: string;
+};
+
+// Today's AI usage for the logged-in user (resets at 00:00 UTC)
+export async function getAiUsage(token: string): Promise<AiUsage> {
+  const response = await fetch(`${API_URL}/ai/usage`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 401) {
+    throw new Error("SESSION_EXPIRED");
+  }
+
+  if (!response.ok) {
+    throw new Error("Couldn't load your remaining analyses.");
+  }
+
+  return (await response.json()) as AiUsage;
+}

@@ -1,4 +1,6 @@
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -28,3 +30,10 @@ class ResumeMatchResult(BaseModel):
 
 class ResumeMatchResponse(BaseModel):
     analysis: ResumeMatchResult
+
+
+class AIUsageStatus(BaseModel):
+    limit: int
+    used: int
+    remaining: int
+    resets_at: datetime

@@ -11,6 +11,52 @@ from models import AIUsage, User
 DAILY_AI_LIMIT = 5
 
 
+def get_utc_day_bounds(now: datetime) -> tuple[datetime, datetime]:
+    """Return the start and end of the UTC day containing `now`."""
+    start_of_day = datetime.combine(
+        now.astimezone(timezone.utc).date(),
+        time.min,
+        tzinfo=timezone.utc,
+    )
+
+    return start_of_day, start_of_day + timedelta(days=1)
+
+
+def count_ai_usage(
+    db: Session,
+    user_id: int,
+    start_of_day: datetime,
+    end_of_day: datetime,
+) -> int:
+    """Count a user's AI requests within one UTC day."""
+    return db.scalar(
+        select(func.count(AIUsage.id)).where(
+            AIUsage.user_id == user_id,
+            AIUsage.created_at >= start_of_day,
+            AIUsage.created_at < end_of_day,
+        )
+    ) or 0
+
+
+def get_ai_usage_status(
+    db: Session,
+    user_id: int,
+    now: datetime | None = None,
+) -> dict:
+    """Return today's AI usage for a user without reserving anything."""
+    now = now or datetime.now(timezone.utc)
+    start_of_day, end_of_day = get_utc_day_bounds(now)
+
+    used = count_ai_usage(db, user_id, start_of_day, end_of_day)
+
+    return {
+        "limit": DAILY_AI_LIMIT,
+        "used": min(used, DAILY_AI_LIMIT),
+        "remaining": max(DAILY_AI_LIMIT - used, 0),
+        "resets_at": end_of_day,
+    }
+
+
 def reserve_ai_usage(
     db: Session,
     user_id: int,
@@ -19,12 +65,7 @@ def reserve_ai_usage(
     """Atomically reserve one AI request for an authenticated user."""
 
     now = datetime.now(timezone.utc)
-    start_of_day = datetime.combine(
-        now.date(),
-        time.min,
-        tzinfo=timezone.utc,
-    )
-    end_of_day = start_of_day + timedelta(days=1)
+    start_of_day, end_of_day = get_utc_day_bounds(now)
 
     try:
         # Serialize reservations for this user.
@@ -40,12 +81,11 @@ def reserve_ai_usage(
                 detail="User no longer exists.",
             )
 
-        usage_count = db.scalar(
-            select(func.count(AIUsage.id)).where(
-                AIUsage.user_id == user_id,
-                AIUsage.created_at >= start_of_day,
-                AIUsage.created_at < end_of_day,
-            )
+        usage_count = count_ai_usage(
+            db,
+            user_id,
+            start_of_day,
+            end_of_day,
         )
 
         if usage_count >= DAILY_AI_LIMIT:
