@@ -34,6 +34,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      # Trust X-Forwarded-For from Caddy so rate limiting sees real client
+      # IPs. Safe because the API is only reachable through Caddy.
+      FORWARDED_ALLOW_IPS: "*"
     depends_on:
       db:
         condition: service_healthy
@@ -44,12 +47,9 @@ services:
       retries: 3
       start_period: 20s
     logging: *default-logging
-    # --proxy-headers trusts X-Forwarded-For from the reverse proxy so
-    # rate limiting sees real client IPs. The API port is never public.
     command: >
       sh -c "alembic upgrade head &&
-             uvicorn main:app --host 0.0.0.0 --port 8000
-             --proxy-headers --forwarded-allow-ips='*'"
+             uvicorn main:app --host 0.0.0.0 --port 8000"
 
 volumes:
   postgres_data:
