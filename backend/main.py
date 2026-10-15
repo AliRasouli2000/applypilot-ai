@@ -33,7 +33,7 @@ from schemas import (
 
 
 app = FastAPI(
-    title="ApplyPilot Lite API",
+    title="ApplyPilot AI API",
     description="AI-powered job application tracker",
     version="1.0.0",
 )
@@ -69,7 +69,7 @@ app.add_middleware(
 @app.get("/")
 def home():
     return {
-        "message": "Welcome to ApplyPilot Lite!"
+        "message": "Welcome to ApplyPilot AI!"
     }
 
 

@@ -96,7 +96,7 @@ export default function AuthPage({
           <div className="brand">
             <LogoMark size={32} />
             <span className="brand-name">
-              ApplyPilot <span className="brand-tag">Lite</span>
+              ApplyPilot <span className="brand-tag">AI</span>
             </span>
           </div>
 
@@ -105,7 +105,7 @@ export default function AuthPage({
               Run your job search like a project.
             </h2>
             <p className="auth-brand-text">
-              ApplyPilot keeps your applications organized and uses AI to
+              ApplyPilot AI keeps your applications organized and uses AI to
               help you tailor your resume for every role.
             </p>
           </div>
@@ -129,7 +129,7 @@ export default function AuthPage({
           <div className="brand auth-mobile-brand">
             <LogoMark size={32} />
             <span className="brand-name">
-              ApplyPilot <span className="brand-tag">Lite</span>
+              ApplyPilot <span className="brand-tag">AI</span>
             </span>
           </div>
 
@@ -251,7 +251,7 @@ export default function AuthPage({
           </form>
 
           <p className="auth-switch">
-            {isRegister ? "Already have an account?" : "New to ApplyPilot?"}{" "}
+            {isRegister ? "Already have an account?" : "New to ApplyPilot AI?"}{" "}
             <button
               type="button"
               className="link-button"

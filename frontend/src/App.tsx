@@ -38,7 +38,7 @@ function AppShell({ token, user, onLogout, onSessionExpired }: AppShellProps) {
           <div className="brand">
             <LogoMark size={26} />
             <span className="brand-name">
-              ApplyPilot <span className="brand-tag">Lite</span>
+              ApplyPilot <span className="brand-tag">AI</span>
             </span>
           </div>
 

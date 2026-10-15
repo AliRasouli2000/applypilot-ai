@@ -1,4 +1,4 @@
-# ApplyPilot Lite
+# ApplyPilot AI
 
 A full-stack job application tracker. Users create an account, track their
 job applications on a dashboard, and use an AI Resume Matcher (OpenAI) to
