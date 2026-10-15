@@ -11,7 +11,7 @@
 # Logs: journalctl -u applypilot-autodeploy
 set -euo pipefail
 
-REPO="AliRasouli2000/applypilot-lite"
+REPO="AliRasouli2000/applypilot-ai"
 APP_DIR="${APP_DIR:-/home/ec2-user/applypilot-lite}"
 STATE_DIR="${STATE_DIR:-/home/ec2-user/.local/state/applypilot}"
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)

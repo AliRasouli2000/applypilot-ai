@@ -86,8 +86,9 @@ docker compose --env-file .env.docker up -d --build    # http://127.0.0.1:8001
 from anywhere and SSH from my IP only. On the server:
 
 ```bash
-git clone https://github.com/AliRasouli2000/applypilot-lite.git
-cd applypilot-lite
+# The deploy timer expects the code in ~/applypilot-lite
+git clone https://github.com/AliRasouli2000/applypilot-ai.git ~/applypilot-lite
+cd ~/applypilot-lite
 cp .env.example .env && chmod 600 .env    # fill in real values
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
